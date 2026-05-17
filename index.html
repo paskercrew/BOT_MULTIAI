@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<title>CLOUDXGCLOUD</title>
+
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+
+<style>
+  :root {
+    --bg-1: #f2f2f7;
+    --bg-2: #ffffff;
+    --bg-3: #e5e5ea;
+    --bg-4: rgba(255,255,255,0.72);
+    --txt-1: #000000;
+    --txt-2: #3c3c43;
+    --txt-3: #8e8e93;
+    --info:  #007aff;
+    --info-bg: rgba(0,122,255,0.12);
+    --info-bd: rgba(0,122,255,0.25);
+    --ok:    #34c759;
+    --warn:  #ff9500;
+    --warn-bg: rgba(255,149,0,0.12);
+    --warn-bd: rgba(255,149,0,0.25);
+    --err:   #ff3b30;
+    --bd-1:  rgba(60,60,67,0.10);
+    --bd-2:  rgba(60,60,67,0.18);
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-1: #000000;
+      --bg-2: #1c1c1e;
+      --bg-3: #2c2c2e;
+      --bg-4: rgba(28,28,30,0.72);
+      --txt-1: #ffffff;
+      --txt-2: #ebebf5;
+      --txt-3: #8e8e93;
+      --info-bg: rgba(10,132,255,0.18);
+      --info-bd: rgba(10,132,255,0.35);
+      --info: #0a84ff;
+      --warn-bg: rgba(255,159,10,0.18);
+      --warn-bd: rgba(255,159,10,0.35);
+      --bd-1: rgba(255,255,255,0.10);
+      --bd-2: rgba(255,255,255,0.18);
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg-1); color: var(--txt-1); font-family: var(--font-sans); overscroll-behavior: none; }
+  body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  #root { min-height: 100%; }
+  button { font-family: inherit; }
+  input, textarea { font-family: inherit; }
+
+  @keyframes slideInRight { 0% { transform: translate3d(8%, 0, 0) scale(.985); opacity: 0; } 60% { opacity: 1; } 100% { transform: translate3d(0,0,0) scale(1); opacity: 1; } }
+  @keyframes slideInLeft  { 0% { transform: translate3d(-8%, 0, 0) scale(.985); opacity: 0; } 60% { opacity: 1; } 100% { transform: translate3d(0,0,0) scale(1); opacity: 1; } }
+  @keyframes fadeIn       { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: scale(1); } }
+  .slide-r { animation: slideInRight .42s cubic-bezier(0.32, 0.72, 0, 1) both; }
+  .slide-l { animation: slideInLeft  .42s cubic-bezier(0.32, 0.72, 0, 1) both; }
+  .fade    { animation: fadeIn       .35s cubic-bezier(0.32, 0.72, 0, 1) both; }
+
+  .ios-card { background: var(--bg-2); border: 0.5px solid var(--bd-1); border-radius: 14px; }
+  .ios-btn  { background: var(--bg-2); border: 0.5px solid var(--bd-2); border-radius: 10px; color: var(--txt-1); cursor: pointer; transition: transform .15s ease, background .2s ease; }
+  .ios-btn:active { transform: scale(0.96); }
+  .nav-blur { background: var(--bg-4); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
+  .scroll-area { scrollbar-width: thin; }
+  .scroll-area::-webkit-scrollbar { width: 4px; height: 4px; }
+  .scroll-area::-webkit-scrollbar-thumb { background: var(--bd-2); border-radius: 4px; }
+
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot.ok  { background: var(--ok);  box-shadow: 0 0 8px rgba(52,199,89,.5); }
+  .dot.off { background: var(--err); box-shadow: 0 0 8px rgba(255,69,58,.5); }
+
+  .term { background: #0a0a0c; color: #c0caf5; font-family: var(--font-mono); }
+  .term .prompt { color: #9ece6a; }
+  .term .cmd { color: #7aa2f7; }
+  .term .ok  { color: #9ece6a; }
+  .term .warn { color: #e0af68; }
+
+  code.inline { font-family: var(--font-mono); font-size: 0.9em; padding: 1px 4px; background: var(--bg-3); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useEffect, useRef } = React;
+
+/* ── Inline SVG icons (lucide-style) ─────────── */
+const Icon = ({ name, size=20, color="currentColor", strokeWidth=2 }) => {
+  const P = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth, strokeLinecap: "round", strokeLinejoin: "round" };
+  switch(name) {
+    case "send": return <svg {...P}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>;
+    case "msg": return <svg {...P}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
+    case "server": return <svg {...P}><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>;
+    case "folder": return <svg {...P}><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>;
+    case "settings": return <svg {...P}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
+    case "layers": return <svg {...P}><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>;
+    case "term": return <svg {...P}><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>;
+    case "back": return <svg {...P}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
+    case "chev": return <svg {...P}><path d="m9 18 6-6-6-6"/></svg>;
+    case "check": return <svg {...P} strokeWidth={2.5}><path d="M20 6 9 17l-5-5"/></svg>;
+    case "x": return <svg {...P}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+    case "bot": return <svg {...P}><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>;
+    case "cpu": return <svg {...P}><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9"/><path d="M15 2v2M9 2v2M15 20v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2"/></svg>;
+    case "db": return <svg {...P}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>;
+    case "hd": return <svg {...P}><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></svg>;
+    case "net": return <svg {...P}><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 8h7M9 12h7M9 16h7"/></svg>;
+    case "reboot": return <svg {...P}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+    case "cam": return <svg {...P}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>;
+    case "power": return <svg {...P}><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>;
+    case "play": return <svg {...P} fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>;
+    case "pause": return <svg {...P} fill="currentColor"><rect width="4" height="16" x="6" y="4"/><rect width="4" height="16" x="14" y="4"/></svg>;
+    case "max": return <svg {...P}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>;
+    default: return null;
+  }
+};
+
+/* ── Data ─────────────────────────────────── */
+const PROVIDERS = {
+  groq:              { name: "Groq",          icon: "⚡", desc: "Llama-3.3-70B",   group: "Direct API",    ok: true  },
+  claude:            { name: "Claude",         icon: "🤖", desc: "Sonnet 4",        group: "Direct API",    ok: true  },
+  gemini:            { name: "Gemini",         icon: "✨", desc: "2.0 Flash",       group: "Direct API",    ok: true  },
+  deepseek:          { name: "DeepSeek",       icon: "🌊", desc: "Chat",            group: "Direct API",    ok: true  },
+  kimi:              { name: "Kimi AI",        icon: "🌙", desc: "v1-8k",           group: "Direct API",    ok: true  },
+  xai:               { name: "Grok",           icon: "🌌", desc: "3 Mini",          group: "Direct API",    ok: true  },
+  ollama:            { name: "Gemma3-12B",     icon: "🦙", desc: "Ollama Cloud",    group: "Ollama",        ok: true  },
+  ollama_gemma27:    { name: "Gemma3-27B",     icon: "🦙", desc: "Ollama Cloud",    group: "Ollama",        ok: true  },
+  ollama_gemma4:     { name: "Gemma4-31B",     icon: "🦙", desc: "Ollama Cloud",    group: "Ollama",        ok: true  },
+  ollama_mistral:    { name: "Mistral-14B",    icon: "🌀", desc: "Ollama Cloud",    group: "Ollama",        ok: true  },
+  ollama_kimi_cloud: { name: "Kimi-K2.5★",    icon: "🌙", desc: "Premium",         group: "Ollama Cloud★", ok: false },
+  ollama_minimax:    { name: "MiniMax-M2★",   icon: "🎯", desc: "Premium",         group: "Ollama Cloud★", ok: false },
+  ollama_glm:        { name: "GLM-5.1★",      icon: "🔮", desc: "Premium",         group: "Ollama Cloud★", ok: false },
+  openclaw:          { name: "BOY/OpenClaw",   icon: "🐾", desc: "Gemini Local",    group: "OpenClaw",      ok: true  },
+  claude_cli:        { name: "Claude CLI",     icon: "🤖", desc: "Login akun",      group: "CLI",           ok: false },
+  gemini_cli:        { name: "Gemini CLI",     icon: "✨", desc: "Login akun",      group: "CLI",           ok: false },
+};
+const GROUPS = ["Direct API", "Ollama", "Ollama Cloud★", "OpenClaw", "CLI"];
+const TOKEN_STATUS = [
+  { name: "Claude API",   icon: "🤖", ok: true,  msg: "Kredit tersedia" },
+  { name: "DeepSeek",     icon: "🌊", ok: true,  msg: "Aktif" },
+  { name: "Gemini API",   icon: "✨", ok: true,  msg: "Aktif" },
+  { name: "Kimi AI",      icon: "🌙", ok: true,  msg: "Aktif" },
+  { name: "Groq",         icon: "⚡", ok: true,  msg: "Aktif (gratis)" },
+  { name: "xAI Grok",     icon: "🌌", ok: true,  msg: "Aktif" },
+  { name: "Ollama Cloud", icon: "🦙", ok: true,  msg: "Models tersedia" },
+  { name: "OpenClaw",     icon: "🐾", ok: true,  msg: "Live · localhost:8080" },
+  { name: "Claude CLI",   icon: "🤖", ok: false, msg: "Login diperlukan" },
+  { name: "Gemini CLI",   icon: "✨", ok: false, msg: "Login diperlukan" },
+];
+const FILES = [
+  { name: "telegram-bot",      type: "dir" },
+  { name: "openclaw",          type: "dir" },
+  { name: "Projects",          type: "dir" },
+  { name: "Downloads",         type: "dir" },
+  { name: "bot.py",            type: "file", size: "24 KB" },
+  { name: "openclaw_agent.py", type: "file", size: "18 KB" },
+  { name: "start_bot.bat",     type: "file", size: "2 KB" },
+  { name: "screenshot.png",    type: "file", size: "1.2 MB" },
+  { name: "requirements.txt",  type: "file", size: "1 KB" },
+];
+const INITIAL_SERVICES = [
+  { name: "Telegram Bot",   port: 8443, status: "running", icon: "🤖" },
+  { name: "OpenClaw Agent", port: 8080, status: "running", icon: "🐾" },
+  { name: "AI Gateway",     port: 3000, status: "running", icon: "⚡" },
+  { name: "SSH Server",     port: 22,   status: "running", icon: "🔐" },
+  { name: "HTTP Proxy",     port: 80,   status: "stopped", icon: "🌐" },
+];
+const TABS = ["chat", "vps", "openclaw", "files", "settings"];
+
+const TERM_BANNER = [
+  "Microsoft Windows [Version 11.0.26100.2454]",
+  "(c) CLOUDXGCLOUD VPS · Batam-ID-01 · Uptime 14d 03:42",
+  "",
+  "iky@cloudx-batam-01 ~",
+  "$ bot status",
+  "[OK] Bot berjalan · Owner ID: 6463680253",
+  "[OK] Default AI: Groq (Llama-3.3-70B)",
+  "[OK] OpenClaw agent connected · localhost:8080",
+  "[OK] Telegram commands registered",
+  "",
+];
+
+const fmtTime = () => new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+const md = (t) => t
+  .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+  .replace(/\*([^*]+)\*/g, "<strong>$1</strong>")
+  .replace(/`([^`]+)`/g, '<code class="inline">$1</code>')
+  .replace(/\n/g, "<br/>");
+
+/* ── Atoms ────────────────────────────────── */
+const Dot = ({ ok }) => <span className={`dot ${ok ? "ok" : "off"}`} />;
+
+const Bar = ({ v, c }) => (
+  <div style={{ height: 4, background: "var(--bg-3)", borderRadius: 999, overflow: "hidden", marginTop: 6 }}>
+    <div style={{ width: `${v}%`, height: "100%", background: c, borderRadius: 999, transition: "width .8s cubic-bezier(0.32, 0.72, 0, 1)" }} />
+  </div>
+);
+
+const Metric = ({ icon, label, value, sub, pct, color }) => (
+  <div className="ios-card" style={{ padding: "12px 14px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+      <Icon name={icon} size={13} color="var(--txt-3)" />
+      <span style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500 }}>{label}</span>
+    </div>
+    <p style={{ margin: 0, fontSize: 22, fontWeight: 600, lineHeight: 1, letterSpacing: "-0.02em" }}>{value}</p>
+    {sub && <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--txt-3)" }}>{sub}</p>}
+    {pct !== undefined && <Bar v={pct} c={color} />}
+  </div>
+);
+
+/* ── App ──────────────────────────────────── */
+function App() {
+  const [tab, setTab] = useState("chat");
+  const [slideDir, setSlideDir] = useState(0);
+  const [animKey, setAnimKey] = useState(0);
+  const [screen, setScreen] = useState("main");
+
+  const [pid, setPid] = useState("groq");
+  const [msgs, setMsgs] = useState([
+    { role: "bot", text: "CLOUDXGCLOUD BOT aktif 🤖\n\nAI aktif: ⚡ *Groq* (Llama-3.3-70B)\n\nKetik pesan untuk chat dengan AI, atau pilih tab di bawah.\n\n_Tip: buka tab Tools → Backend untuk set endpoint API._", time: "00:47" }
+  ]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const [ocMsgs, setOcMsgs] = useState([
+    { role: "agent", text: "🐾 *OpenClaw Agent · Connected*\nModel: Gemini Local · Port 8080\nTools: file_io, shell, web_fetch, draw_io\n\nSiap menerima task.", time: fmtTime() }
+  ]);
+  const [ocInput, setOcInput] = useState("");
+  const [ocBusy, setOcBusy] = useState(false);
+
+  const [path, setPath] = useState("C:\\Users\\ASUS\\Desktop");
+  const [cmdIn, setCmdIn] = useState("");
+  const [cmdLog, setCmdLog] = useState(TERM_BANNER);
+  const [cpu, setCpu] = useState(34);
+  const [services, setServices] = useState(INITIAL_SERVICES);
+
+  // Backend config (stored in localStorage for the standalone APK build)
+  const [backend, setBackend] = useState(() => {
+    try { return localStorage.getItem("cx_backend") || ""; } catch { return ""; }
+  });
+  const [apiKey, setApiKey] = useState(() => {
+    try { return localStorage.getItem("cx_apikey") || ""; } catch { return ""; }
+  });
+
+  // OpenClaw real connection (direct to agent, not via backend)
+  const [ocUrl, setOcUrl] = useState(() => {
+    try { return localStorage.getItem("cx_openclaw_url") || "http://localhost:8080"; } catch { return "http://localhost:8080"; }
+  });
+  const [ocFormat, setOcFormat] = useState(() => {
+    try { return localStorage.getItem("cx_openclaw_fmt") || "auto"; } catch { return "auto"; }
+  });
+  const [ocModel, setOcModel] = useState(() => {
+    try { return localStorage.getItem("cx_openclaw_model") || "gemini-local"; } catch { return "gemini-local"; }
+  });
+  // Mode: "external" (server) atau "embedded" (Gemini direct, agent jadi part of APK)
+  const [ocMode, setOcMode] = useState(() => {
+    try { return localStorage.getItem("cx_openclaw_mode") || "embedded"; } catch { return "embedded"; }
+  });
+  const [geminiKey, setGeminiKey] = useState(() => {
+    try { return localStorage.getItem("cx_gemini_key") || ""; } catch { return ""; }
+  });
+  const [geminiModel, setGeminiModel] = useState(() => {
+    try { return localStorage.getItem("cx_gemini_model") || "gemini-2.0-flash-exp"; } catch { return "gemini-2.0-flash-exp"; }
+  });
+  // Connection status: "checking" | "online" | "offline"
+  const [ocStatus, setOcStatus] = useState("checking");
+  const [ocPingMs, setOcPingMs] = useState(null);
+
+  const endRef = useRef(null);
+  const ocEndRef = useRef(null);
+  const termEndRef = useRef(null);
+
+  useEffect(() => { const t = setInterval(() => setCpu(Math.floor(22 + Math.random() * 35)), 3000); return () => clearInterval(t); }, []);
+  useEffect(() => { if (tab === "chat") endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy, tab]);
+  useEffect(() => { if (tab === "openclaw") ocEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [ocMsgs, ocBusy, tab]);
+  useEffect(() => { termEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [cmdLog]);
+
+  /* ── OpenClaw real connection ─────────────────────────────────────── */
+  // Try several common endpoints to detect if agent is alive
+  async function pingOpenClaw(url) {
+    if (!url) return { ok: false, ms: null };
+    const start = performance.now();
+    const candidates = ["/health", "/api/health", "/api/tags", "/v1/models", "/"];
+    const base = url.replace(/\/+$/, "");
+    for (const p of candidates) {
+      try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 2500);
+        const r = await fetch(base + p, { method: "GET", signal: ctrl.signal, mode: "cors" });
+        clearTimeout(tid);
+        if (r.ok || r.status === 404 || r.status === 405) {
+          return { ok: true, ms: Math.round(performance.now() - start) };
+        }
+      } catch (e) { /* try next */ }
+    }
+    return { ok: false, ms: null };
+  }
+
+  async function checkOcStatus() {
+    if (ocMode === "embedded") {
+      // Embedded mode: check by pinging Gemini API key validity
+      if (!geminiKey) { setOcStatus("offline"); setOcPingMs(null); return; }
+      setOcStatus("checking");
+      const start = performance.now();
+      try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 4000);
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(geminiKey)}`, { method: "GET", signal: ctrl.signal });
+        clearTimeout(tid);
+        setOcStatus(r.ok ? "online" : "offline");
+        setOcPingMs(r.ok ? Math.round(performance.now() - start) : null);
+      } catch {
+        setOcStatus("offline"); setOcPingMs(null);
+      }
+      return;
+    }
+    // External mode: ping the OpenClaw server
+    setOcStatus("checking");
+    const r = await pingOpenClaw(ocUrl);
+    setOcStatus(r.ok ? "online" : "offline");
+    setOcPingMs(r.ms);
+  }
+
+  useEffect(() => { checkOcStatus(); /* eslint-disable-next-line */ }, [ocUrl, ocMode, geminiKey]);
+  useEffect(() => { const t = setInterval(checkOcStatus, 20000); return () => clearInterval(t); /* eslint-disable-next-line */ }, [ocUrl, ocMode, geminiKey]);
+
+  // Embedded mode — call Gemini API directly. App jadi self-contained agent (OpenClaw embedded di APK).
+  async function callGeminiEmbedded(text, history) {
+    if (!geminiKey) return "⚠️ Gemini API key belum di-set. Buka Tools → OpenClaw Agent, pilih mode **Embedded**, masukkan API key dari https://aistudio.google.com/apikey";
+    const sys = `Kamu adalah OpenClaw Agent, AI asisten yang sudah di-embed dalam APK "Bot Tele MultiAI" punya IKy di Batam. Berbasis Gemini, mampu reasoning, koding, drawio diagram, network ops (PROXINET), terminal/shell guidance. Gaya: praktis, teknis, ringkas, Bahasa Indonesia kasual. Mulai jawaban dengan emoji 🐾 kalau cocok.`;
+    const contents = [...(history || []).slice(-8).map(m => ({
+      role: m.role === "agent" ? "model" : "user",
+      parts: [{ text: m.text }]
+    })), { role: "user", parts: [{ text }] }];
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent?key=${encodeURIComponent(geminiKey)}`;
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 60000);
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: sys }] },
+          contents,
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+        }),
+        signal: ctrl.signal
+      });
+      clearTimeout(tid);
+      if (!res.ok) {
+        const t = await res.text();
+        setOcStatus("offline");
+        return `⚠️ Gemini API error (${res.status}): ${t.slice(0, 200)}`;
+      }
+      const d = await res.json();
+      const reply = d?.candidates?.[0]?.content?.parts?.map(p => p.text).join("") || "🐾 (no reply)";
+      setOcStatus("online");
+      return reply;
+    } catch (e) {
+      setOcStatus("offline");
+      return `⚠️ Embedded agent error: ${e.message}`;
+    }
+  }
+
+  // Direct call to OpenClaw — tries multiple API formats automatically
+  async function callOpenClawDirect(text, history) {
+    // Embedded mode wins — OpenClaw jadi part of APK, no external server needed
+    if (ocMode === "embedded") return callGeminiEmbedded(text, history);
+
+    const base = (ocUrl || "").replace(/\/+$/, "");
+    if (!base) return "⚠️ OpenClaw URL belum di-set. Buka Tools → OpenClaw Agent.";
+    const fmt = ocFormat || "auto";
+    const tries = [];
+    // Order based on user preference
+    if (fmt === "auto" || fmt === "openai") tries.push("openai");
+    if (fmt === "auto" || fmt === "ollama-chat") tries.push("ollama-chat");
+    if (fmt === "auto" || fmt === "ollama-gen") tries.push("ollama-gen");
+    if (fmt === "auto" || fmt === "anthropic") tries.push("anthropic");
+    if (fmt === "auto" || fmt === "simple") tries.push("simple");
+
+    const msgHist = (history || []).slice(-6).map(m => ({
+      role: m.role === "agent" ? "assistant" : (m.role === "user" ? "user" : "system"),
+      content: m.text
+    }));
+    const messages = [...msgHist, { role: "user", content: text }];
+
+    let lastErr = null;
+    for (const t of tries) {
+      try {
+        let url, body;
+        if (t === "openai") {
+          url = base + "/v1/chat/completions";
+          body = { model: ocModel, messages, stream: false };
+        } else if (t === "ollama-chat") {
+          url = base + "/api/chat";
+          body = { model: ocModel, messages, stream: false };
+        } else if (t === "ollama-gen") {
+          url = base + "/api/generate";
+          body = { model: ocModel, prompt: text, stream: false };
+        } else if (t === "anthropic") {
+          url = base + "/v1/messages";
+          body = { model: ocModel, max_tokens: 1024, messages };
+        } else if (t === "simple") {
+          url = base + "/chat";
+          body = { prompt: text, message: text, model: ocModel };
+        }
+        const headers = { "Content-Type": "application/json" };
+        if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 60000);
+        const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: ctrl.signal, mode: "cors" });
+        clearTimeout(tid);
+        if (!res.ok) { lastErr = `${t}: HTTP ${res.status}`; continue; }
+        const d = await res.json();
+        // Extract response from various shapes
+        const reply =
+          d?.choices?.[0]?.message?.content ||
+          d?.choices?.[0]?.text ||
+          d?.message?.content ||
+          d?.content?.[0]?.text ||
+          d?.response ||
+          d?.reply ||
+          d?.text ||
+          d?.output ||
+          (typeof d === "string" ? d : null);
+        if (reply) {
+          setOcStatus("online");
+          return reply;
+        }
+        lastErr = `${t}: respons kosong/format tidak dikenal`;
+      } catch (e) {
+        lastErr = `${t}: ${e.message}`;
+      }
+    }
+    setOcStatus("offline");
+    return `⚠️ Gagal connect ke OpenClaw (${ocUrl}).\n\nDetail: ${lastErr || "no response"}\n\nCek: (1) agent jalan di URL itu, (2) port terbuka, (3) CORS allowed, (4) coba ganti format API di Tools.`;
+  }
+
+  const p = PROVIDERS[pid];
+
+  function changeTab(newTab) {
+    if (newTab === tab) return;
+    const oi = TABS.indexOf(tab), ni = TABS.indexOf(newTab);
+    setSlideDir(ni > oi ? 1 : -1);
+    setAnimKey(k => k + 1);
+    setTab(newTab);
+  }
+
+  /* Call backend OR fallback to demo */
+  async function callBackend(text, persona) {
+    if (!backend) {
+      // Demo mode
+      await new Promise(r => setTimeout(r, 700));
+      return `_(mode demo)_ Hai! Saya **${persona}**. Set backend URL di Tools → Backend untuk respon AI sungguhan.\n\nKamu bilang: \`${text.slice(0, 80)}\``;
+    }
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+      const res = await fetch(backend, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ provider: pid, persona, message: text })
+      });
+      const d = await res.json();
+      return d.reply || d.text || d.message || "Tidak ada respon.";
+    } catch (e) {
+      return `⚠️ Error koneksi backend: ${e.message}`;
+    }
+  }
+
+  async function send() {
+    if (!input.trim() || busy) return;
+    const text = input.trim();
+    setInput("");
+    setMsgs(prev => [...prev, { role: "user", text, time: fmtTime() }]);
+    setBusy(true);
+    const reply = await callBackend(text, p.name);
+    setMsgs(prev => [...prev, { role: "bot", text: `${p.icon} *${p.name}:*\n\n${reply}`, time: fmtTime() }]);
+    setBusy(false);
+  }
+
+  async function sendOpenClaw() {
+    if (!ocInput.trim() || ocBusy) return;
+    const text = ocInput.trim();
+    const histSnapshot = ocMsgs;
+    setOcInput("");
+    setOcMsgs(prev => [...prev, { role: "user", text, time: fmtTime() }]);
+    setOcBusy(true);
+    const reply = await callOpenClawDirect(text, histSnapshot);
+    setOcMsgs(prev => [...prev, { role: "agent", text: reply.startsWith("🐾") || reply.startsWith("⚠️") ? reply : `🐾 ${reply}`, time: fmtTime() }]);
+    setOcBusy(false);
+  }
+
+  function switchPid(newId) {
+    setPid(newId);
+    setScreen("main");
+    const np = PROVIDERS[newId];
+    setMsgs(prev => [...prev, { role: "system", text: `AI diganti ke ${np.icon} *${np.name}* (${np.desc})\n${np.ok ? "✅ Siap" : "⚠️ Perlu konfigurasi"}`, time: fmtTime() }]);
+    changeTab("chat");
+  }
+
+  function runCmd() {
+    if (!cmdIn.trim()) return;
+    const c = cmdIn.trim();
+    let out = [];
+    if (c === "clear" || c === "cls") { setCmdLog([]); setCmdIn(""); return; }
+    else if (c === "help") out = ["Available: status, services, ps, uptime, whoami, ipconfig, clear, exit"];
+    else if (c === "status") out = [`CPU: ${cpu}% · RAM: 37% · Disk: 24% · Bot: running · OpenClaw: connected`];
+    else if (c === "services") out = services.map(s => `  ${s.status === "running" ? "●" : "○"} ${s.name.padEnd(18)} :${s.port}  [${s.status}]`);
+    else if (c === "ps") out = ["  PID  NAME             CPU   RAM", "  1024 bot.py          12%   180M", "  2048 openclaw.py      8%   220M", "  3072 ai_gateway.js    3%    95M"];
+    else if (c === "uptime") out = ["Uptime: 14 days, 03:42:18 · Load avg: 0.34, 0.41, 0.39"];
+    else if (c === "whoami") out = ["iky@cloudx-batam-01 · CLOUDXGCLOUD VPS"];
+    else if (c === "ipconfig" || c === "ifconfig") out = ["eth0  inet 103.142.xx.xx  netmask 255.255.255.0", "lo    inet 127.0.0.1"];
+    else if (c === "exit") out = ["Logout. Session closed."];
+    else out = [`'${c}' tidak dikenali. Ketik 'help' untuk daftar perintah.`];
+    setCmdLog(prev => [...prev, `$ ${c}`, ...out, ""]);
+    setCmdIn("");
+  }
+
+  function toggleService(idx) {
+    setServices(prev => prev.map((s, i) => i === idx ? { ...s, status: s.status === "running" ? "stopped" : "running" } : s));
+  }
+
+  function saveBackend(v) { setBackend(v); try { localStorage.setItem("cx_backend", v); } catch {} }
+  function saveApiKey(v) { setApiKey(v); try { localStorage.setItem("cx_apikey", v); } catch {} }
+  function saveOcUrl(v) { setOcUrl(v); try { localStorage.setItem("cx_openclaw_url", v); } catch {} }
+  function saveOcFormat(v) { setOcFormat(v); try { localStorage.setItem("cx_openclaw_fmt", v); } catch {} }
+  function saveOcModel(v) { setOcModel(v); try { localStorage.setItem("cx_openclaw_model", v); } catch {} }
+  function saveOcMode(v) { setOcMode(v); try { localStorage.setItem("cx_openclaw_mode", v); } catch {} }
+  function saveGeminiKey(v) { setGeminiKey(v); try { localStorage.setItem("cx_gemini_key", v); } catch {} }
+  function saveGeminiModel(v) { setGeminiModel(v); try { localStorage.setItem("cx_gemini_model", v); } catch {} }
+
+  const slideClass = slideDir === 0 ? "fade" : (slideDir > 0 ? "slide-r" : "slide-l");
+
+  /* ── Provider screen ──────────────────── */
+  if (screen === "providers") return (
+    <div style={{ maxWidth: 420, margin: "0 auto", minHeight: "100vh", background: "var(--bg-1)" }}>
+      <div className="nav-blur" style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 14px 12px", borderBottom: "0.5px solid var(--bd-1)", position: "sticky", top: 0, zIndex: 10 }}>
+        <button onClick={() => setScreen("main")} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--info)", display: "flex" }}>
+          <Icon name="back" size={22} />
+        </button>
+        <div>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 600, letterSpacing: "-0.02em" }}>Pilih AI Provider</p>
+          <p style={{ margin: 0, fontSize: 11, color: "var(--txt-3)" }}>Aktif: {p.icon} {p.name}</p>
+        </div>
+      </div>
+      <div style={{ padding: "8px 12px 80px" }}>
+        {GROUPS.map(grp => {
+          const items = Object.entries(PROVIDERS).filter(([, v]) => v.group === grp);
+          return (
+            <div key={grp} style={{ marginTop: 18 }}>
+              <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>{grp}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {items.map(([id, pr]) => (
+                  <button key={id} onClick={() => switchPid(id)} style={{
+                    display: "flex", alignItems: "center", gap: 12, padding: "11px 13px",
+                    background: id === pid ? "var(--info-bg)" : "var(--bg-2)",
+                    border: `0.5px solid ${id === pid ? "var(--info-bd)" : "var(--bd-1)"}`,
+                    borderRadius: 12, cursor: "pointer", textAlign: "left", width: "100%"
+                  }}>
+                    <span style={{ fontSize: 20, flexShrink: 0 }}>{pr.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: id === pid ? 600 : 500, color: id === pid ? "var(--info)" : "var(--txt-1)" }}>{pr.name}</p>
+                      <p style={{ margin: 0, fontSize: 11, color: id === pid ? "var(--info)" : "var(--txt-3)" }}>{pr.desc}</p>
+                    </div>
+                    {id === pid && <Icon name="check" size={16} color="var(--info)" />}
+                    {!pr.ok && id !== pid && <span style={{ fontSize: 9, padding: "2px 6px", background: "var(--warn-bg)", color: "var(--warn)", borderRadius: 4, fontWeight: 600 }}>CONFIG</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  /* ── Fullscreen Terminal ──────────────── */
+  if (screen === "terminal-full") return (
+    <div className="term" style={{ maxWidth: 420, margin: "0 auto", minHeight: "100vh" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 12px", borderBottom: "0.5px solid #1f1f24", background: "rgba(20,20,24,0.92)", backdropFilter: "blur(20px)", position: "sticky", top: 0, zIndex: 10 }}>
+        <button onClick={() => setScreen("main")} style={{ background: "none", border: "none", cursor: "pointer", color: "#7aa2f7", display: "flex", alignItems: "center", gap: 4 }}>
+          <Icon name="back" size={20} /> <span style={{ fontFamily: "var(--font-sans)", fontSize: 14 }}>VPS</span>
+        </button>
+        <div style={{ textAlign: "center", flex: 1 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "#e6e6e6", fontWeight: 600, fontFamily: "var(--font-sans)" }}>Terminal</p>
+          <p style={{ margin: 0, fontSize: 10, color: "#7aa2f7" }}>iky@cloudx-batam-01 · zsh</p>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#ff5f57" }} />
+          <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#febc2e" }} />
+          <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#28c840" }} />
+        </div>
+      </div>
+      <div className="scroll-area" style={{ padding: "12px 14px", minHeight: "calc(100vh - 110px)", maxHeight: "calc(100vh - 110px)", overflowY: "auto" }}>
+        {cmdLog.map((line, i) => (
+          <p key={i} style={{ margin: "0 0 1px", fontSize: 12, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-all",
+            color: line.startsWith("$") ? "#7aa2f7" : line.startsWith("[OK]") ? "#9ece6a" : (line.startsWith("[Simulasi]") || line.startsWith("Warning")) ? "#e0af68" : "#c0caf5"
+          }}>{line || "\u00A0"}</p>
+        ))}
+        <div ref={termEndRef} />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderTop: "0.5px solid #1f1f24", background: "rgba(20,20,24,0.92)", position: "sticky", bottom: 0 }}>
+        <span style={{ fontSize: 12, color: "#9ece6a" }}>$</span>
+        <input autoFocus value={cmdIn} onChange={e => setCmdIn(e.target.value)} onKeyDown={e => e.key === "Enter" && runCmd()} placeholder="ketik perintah... (help)" style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 12, fontFamily: "var(--font-mono)", color: "#c0caf5" }} />
+        <button onClick={runCmd} style={{ background: "none", border: "none", cursor: "pointer", color: "#7aa2f7", display: "flex" }}>
+          <Icon name="send" size={14} />
+        </button>
+      </div>
+    </div>
+  );
+
+  /* ── Main ─────────────────────────────── */
+  return (
+    <div style={{ maxWidth: 420, margin: "0 auto", minHeight: "100vh", background: "var(--bg-1)", position: "relative", overflow: "hidden" }}>
+      <div className="nav-blur" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderBottom: "0.5px solid var(--bd-1)", position: "sticky", top: 0, zIndex: 10 }}>
+        <div>
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>CLOUDXGCLOUD</p>
+          <p style={{ margin: 0, fontSize: 11, color: "var(--txt-2)", display: "flex", alignItems: "center", gap: 5 }}>
+            <Dot ok={true} /> Aktif — {p.icon} {p.name}
+          </p>
+        </div>
+        <button className="ios-btn" onClick={() => setScreen("providers")} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 11px", fontSize: 12, fontWeight: 500 }}>
+          <Icon name="bot" size={13} /> Ganti AI
+        </button>
+      </div>
+
+      <div key={animKey} className={slideClass}>
+
+        {/* CHAT */}
+        {tab === "chat" && (
+          <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 132px)" }}>
+            <div className="scroll-area" style={{ flex: 1, overflowY: "auto", padding: "12px 12px 4px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {msgs.map((m, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", alignItems: "flex-end", gap: 7 }}>
+                  {m.role !== "user" && <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--bg-2)", border: "0.5px solid var(--bd-1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>{m.role === "system" ? "ℹ️" : "🤖"}</div>}
+                  <div style={{ maxWidth: "76%" }}>
+                    <div style={{
+                      padding: "9px 13px",
+                      background: m.role === "user" ? "var(--info-bg)" : m.role === "system" ? "var(--warn-bg)" : "var(--bg-2)",
+                      border: `0.5px solid ${m.role === "user" ? "var(--info-bd)" : m.role === "system" ? "var(--warn-bd)" : "var(--bd-1)"}`,
+                      borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                      fontSize: 13, lineHeight: 1.55,
+                      color: m.role === "user" ? "var(--info)" : "var(--txt-1)"
+                    }} dangerouslySetInnerHTML={{ __html: md(m.text) }} />
+                    <p style={{ margin: "2px 5px 0", fontSize: 10, color: "var(--txt-3)", textAlign: m.role === "user" ? "right" : "left" }}>{m.time}</p>
+                  </div>
+                </div>
+              ))}
+              {busy && (
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 7 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--bg-2)", border: "0.5px solid var(--bd-1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>🤖</div>
+                  <div style={{ padding: "9px 13px", background: "var(--bg-2)", borderRadius: "18px 18px 18px 4px", border: "0.5px solid var(--bd-1)", fontSize: 13, color: "var(--txt-2)" }}>{p.icon} {p.name} sedang berpikir...</div>
+                </div>
+              )}
+              <div ref={endRef} />
+            </div>
+            <div style={{ padding: "10px 10px 12px", borderTop: "0.5px solid var(--bd-1)", display: "flex", gap: 8, alignItems: "flex-end", background: "var(--bg-1)" }}>
+              <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder={`Pesan ke ${p.icon} ${p.name}...`} rows={1} style={{ flex: 1, resize: "none", fontSize: 13, lineHeight: 1.5, padding: "8px 12px", borderRadius: 18, border: "0.5px solid var(--bd-2)", background: "var(--bg-2)", color: "var(--txt-1)", maxHeight: 80, outline: "none" }} />
+              <button onClick={send} disabled={busy || !input.trim()} style={{ width: 36, height: 36, borderRadius: "50%", background: (input.trim() && !busy) ? "var(--info-bg)" : "var(--bg-2)", border: "0.5px solid var(--info-bd)", cursor: (input.trim() && !busy) ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name="send" size={14} color={(input.trim() && !busy) ? "var(--info)" : "var(--txt-3)"} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* VPS */}
+        {tab === "vps" && (
+          <div className="scroll-area" style={{ padding: "12px 12px 80px", overflowY: "auto", maxHeight: "calc(100vh - 132px)" }}>
+            <div style={{ background: "linear-gradient(135deg, var(--info-bg) 0%, var(--bg-2) 100%)", border: "0.5px solid var(--info-bd)", borderRadius: 18, padding: 16, marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: "var(--info-bg)", border: "0.5px solid var(--info-bd)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name="server" size={20} color="var(--info)" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>cloudx-batam-01</p>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--txt-2)" }}>Windows 11 Pro · 103.142.xx.xx</p>
+                </div>
+                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#34c759" }}><Dot ok={true} /> Online</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 11 }}>
+                <div><p style={{ margin: 0, color: "var(--txt-3)" }}>Location</p><p style={{ margin: "2px 0 0", fontWeight: 600 }}>🇮🇩 Batam-ID</p></div>
+                <div><p style={{ margin: 0, color: "var(--txt-3)" }}>Uptime</p><p style={{ margin: "2px 0 0", fontWeight: 600 }}>14d 03:42</p></div>
+                <div><p style={{ margin: 0, color: "var(--txt-3)" }}>Plan</p><p style={{ margin: "2px 0 0", fontWeight: 600 }}>Pro · 16GB</p></div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 14 }}>
+              {[
+                { icon: "term", label: "Console", action: () => setScreen("terminal-full"), hi: true },
+                { icon: "reboot", label: "Reboot", action: () => setCmdLog(prev => [...prev, "$ reboot", "[OK] Server reboot scheduled."]) },
+                { icon: "cam", label: "Snapshot", action: () => alert("Snapshot dijadwalkan.") },
+                { icon: "power", label: "Power", action: () => alert("Power action.") },
+              ].map((b, i) => (
+                <button key={i} onClick={b.action} className="ios-btn" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, padding: "11px 4px", background: b.hi ? "var(--info-bg)" : "var(--bg-2)", border: `0.5px solid ${b.hi ? "var(--info-bd)" : "var(--bd-1)"}`, borderRadius: 12, color: b.hi ? "var(--info)" : "var(--txt-1)" }}>
+                  <Icon name={b.icon} size={18} />
+                  <span style={{ fontSize: 10, fontWeight: 600 }}>{b.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+              <Metric icon="cpu" label="CPU" value={`${cpu}%`} pct={cpu} color={cpu > 70 ? "#ff453a" : "#34c759"} />
+              <Metric icon="db" label="RAM" value="37%" sub="6.0 / 16 GB" pct={37} color="#0a84ff" />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+              <Metric icon="hd" label="Disk" value="24%" sub="234 / 953 GB" pct={24} color="#34c759" />
+              <div className="ios-card" style={{ padding: "12px 14px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <Icon name="net" size={13} color="var(--txt-3)" />
+                  <span style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500 }}>Bandwidth</span>
+                </div>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>↑ 1.2 GB</p>
+                <p style={{ margin: "3px 0 0", fontSize: 13, fontWeight: 600 }}>↓ 8.7 GB</p>
+              </div>
+            </div>
+
+            <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Services</p>
+            <div className="ios-card" style={{ overflow: "hidden", marginBottom: 14 }}>
+              {services.map((s, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 13px", borderBottom: i < services.length - 1 ? "0.5px solid var(--bd-1)" : "none" }}>
+                  <span style={{ fontSize: 18 }}>{s.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>{s.name}</p>
+                    <p style={{ margin: 0, fontSize: 10, color: "var(--txt-3)", fontFamily: "var(--font-mono)" }}>Port {s.port}</p>
+                  </div>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: s.status === "running" ? "#34c759" : "var(--txt-3)" }}>
+                    <Dot ok={s.status === "running"} /> {s.status}
+                  </span>
+                  <button onClick={() => toggleService(i)} style={{ background: "var(--bg-3)", border: "none", borderRadius: 8, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--txt-2)" }}>
+                    <Icon name={s.status === "running" ? "pause" : "play"} size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <p style={{ margin: "0 4px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Terminal</p>
+              <button onClick={() => setScreen("terminal-full")} style={{ background: "none", border: "none", color: "var(--info)", fontSize: 11, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+                <Icon name="max" size={11} /> Fullscreen
+              </button>
+            </div>
+            <div className="term" style={{ borderRadius: 12, border: "0.5px solid #1f1f24", padding: "10px 12px" }}>
+              <div style={{ maxHeight: 110, overflowY: "auto", marginBottom: 8 }}>
+                {cmdLog.slice(-6).map((line, i) => (
+                  <p key={i} style={{ margin: "0 0 1px", fontSize: 10, lineHeight: 1.5, wordBreak: "break-all", color: line.startsWith("$") ? "#7aa2f7" : line.startsWith("[OK]") ? "#9ece6a" : "#c0caf5" }}>{line || "\u00A0"}</p>
+                ))}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, borderTop: "0.5px solid #1f1f24", paddingTop: 7 }}>
+                <span style={{ fontSize: 10, color: "#9ece6a" }}>$</span>
+                <input value={cmdIn} onChange={e => setCmdIn(e.target.value)} onKeyDown={e => e.key === "Enter" && runCmd()} placeholder="ketik perintah... (help)" style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 11, color: "#c0caf5", fontFamily: "var(--font-mono)" }} />
+                <button onClick={runCmd} style={{ background: "none", border: "none", cursor: "pointer", color: "#7aa2f7", display: "flex" }}>
+                  <Icon name="send" size={12} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* OPENCLAW */}
+        {tab === "openclaw" && (
+          <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 132px)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 13px", background: "var(--bg-2)", borderBottom: "0.5px solid var(--bd-1)" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 11, background: "linear-gradient(135deg, var(--info-bg), rgba(52,199,89,0.15))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, border: "0.5px solid var(--info-bd)" }}>🐾</div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>OpenClaw Agent</p>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--txt-3)", display: "flex", alignItems: "center", gap: 4 }}>
+                  <Dot ok={ocStatus === "online"} />
+                  {ocStatus === "online" ? `Online · ${ocPingMs ?? "?"}ms` : ocStatus === "checking" ? "Checking..." : "Offline"} · {ocMode === "embedded" ? `📦 ${geminiModel}` : ocModel}
+                </p>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
+                <span onClick={checkOcStatus} style={{ cursor: "pointer", fontSize: 9, padding: "2px 6px", background: ocStatus === "online" ? "rgba(52,199,89,0.15)" : ocStatus === "checking" ? "rgba(255,159,10,0.15)" : "rgba(255,59,48,0.15)", color: ocStatus === "online" ? "#34c759" : ocStatus === "checking" ? "#ff9f0a" : "#ff3b30", borderRadius: 4, fontWeight: 600, letterSpacing: "0.04em" }}>
+                  {ocStatus === "online" ? "LIVE" : ocStatus === "checking" ? "..." : "OFF"}
+                </span>
+                <span style={{ fontSize: 9, color: "var(--txt-3)", fontFamily: "var(--font-mono)", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {ocMode === "embedded" ? "embedded" : (ocUrl || "").replace(/^https?:\/\//, "")}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 5, padding: "8px 12px", overflowX: "auto", borderBottom: "0.5px solid var(--bd-1)" }}>
+              {[{ n: "file_io", e: "📁" }, { n: "shell", e: "💻" }, { n: "web_fetch", e: "🌐" }, { n: "draw_io", e: "🎨" }, { n: "vision", e: "👁️" }].map(t => (
+                <span key={t.n} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", background: "var(--bg-2)", border: "0.5px solid var(--bd-1)", borderRadius: 999, fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--txt-2)", flexShrink: 0 }}>
+                  {t.e} {t.n}
+                </span>
+              ))}
+            </div>
+
+            <div className="scroll-area" style={{ flex: 1, overflowY: "auto", padding: "12px 12px 4px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {ocMsgs.map((m, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", alignItems: "flex-end", gap: 7 }}>
+                  {m.role === "agent" && <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, var(--info-bg), rgba(52,199,89,0.15))", border: "0.5px solid var(--info-bd)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>🐾</div>}
+                  <div style={{ maxWidth: "76%" }}>
+                    <div style={{
+                      padding: "9px 13px",
+                      background: m.role === "user" ? "var(--info-bg)" : "var(--bg-2)",
+                      border: `0.5px solid ${m.role === "user" ? "var(--info-bd)" : "var(--bd-1)"}`,
+                      borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                      fontSize: 13, lineHeight: 1.55,
+                      color: m.role === "user" ? "var(--info)" : "var(--txt-1)"
+                    }} dangerouslySetInnerHTML={{ __html: md(m.text) }} />
+                    <p style={{ margin: "2px 5px 0", fontSize: 10, color: "var(--txt-3)", textAlign: m.role === "user" ? "right" : "left" }}>{m.time}</p>
+                  </div>
+                </div>
+              ))}
+              {ocBusy && (
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 7 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg, var(--info-bg), rgba(52,199,89,0.15))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>🐾</div>
+                  <div style={{ padding: "9px 13px", background: "var(--bg-2)", borderRadius: "18px 18px 18px 4px", border: "0.5px solid var(--bd-1)", fontSize: 13, color: "var(--txt-2)" }}>🐾 Agent berpikir... <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--txt-3)" }}>[tool: thinking]</span></div>
+                </div>
+              )}
+              <div ref={ocEndRef} />
+            </div>
+
+            <div style={{ padding: "10px 10px 12px", borderTop: "0.5px solid var(--bd-1)", display: "flex", gap: 8, alignItems: "flex-end" }}>
+              <textarea value={ocInput} onChange={e => setOcInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendOpenClaw(); } }} placeholder="Beri perintah ke OpenClaw..." rows={1} style={{ flex: 1, resize: "none", fontSize: 13, lineHeight: 1.5, padding: "8px 12px", borderRadius: 18, border: "0.5px solid var(--bd-2)", background: "var(--bg-2)", color: "var(--txt-1)", maxHeight: 80, outline: "none" }} />
+              <button onClick={sendOpenClaw} disabled={ocBusy || !ocInput.trim()} style={{ width: 36, height: 36, borderRadius: "50%", background: (ocInput.trim() && !ocBusy) ? "var(--info-bg)" : "var(--bg-2)", border: "0.5px solid var(--info-bd)", cursor: (ocInput.trim() && !ocBusy) ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="send" size={14} color={(ocInput.trim() && !ocBusy) ? "var(--info)" : "var(--txt-3)"} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* FILES */}
+        {tab === "files" && (
+          <div className="scroll-area" style={{ padding: "12px 12px 80px", overflowY: "auto", maxHeight: "calc(100vh - 132px)" }}>
+            <div className="ios-card" style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 11px", marginBottom: 12 }}>
+              <Icon name="folder" size={12} color="var(--txt-3)" />
+              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--txt-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{path}</span>
+            </div>
+            <div className="ios-card" style={{ overflow: "hidden", marginBottom: 16 }}>
+              {FILES.map((f, i) => (
+                <div key={i} onClick={() => f.type === "dir" && setPath(path + "\\" + f.name)} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 13px", borderBottom: i < FILES.length - 1 ? "0.5px solid var(--bd-1)" : "none", cursor: f.type === "dir" ? "pointer" : "default" }}>
+                  <span style={{ fontSize: 17 }}>{f.type === "dir" ? "📁" : f.name.endsWith(".py") ? "🐍" : f.name.endsWith(".png") ? "🖼️" : f.name.endsWith(".bat") ? "⚙️" : "📄"}</span>
+                  <div style={{ flex: 1, overflow: "hidden" }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</p>
+                    {f.size && <p style={{ margin: 0, fontSize: 10, color: "var(--txt-3)" }}>{f.size}</p>}
+                  </div>
+                  {f.type === "dir" && <Icon name="chev" size={14} color="var(--txt-3)" />}
+                </div>
+              ))}
+            </div>
+
+            <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Token & Kredit</p>
+            <div className="ios-card" style={{ overflow: "hidden" }}>
+              {TOKEN_STATUS.map((t, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 13px", borderBottom: i < TOKEN_STATUS.length - 1 ? "0.5px solid var(--bd-1)" : "none" }}>
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>{t.icon} {t.name}</span>
+                  <span style={{ fontSize: 11, color: t.ok ? "#34c759" : "var(--warn)", display: "flex", alignItems: "center", gap: 4 }}>
+                    <Dot ok={t.ok} /> {t.msg}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SETTINGS */}
+        {tab === "settings" && (
+          <div className="scroll-area" style={{ padding: "12px 12px 80px", overflowY: "auto", maxHeight: "calc(100vh - 132px)" }}>
+            <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Backend Config</p>
+            <div className="ios-card" style={{ padding: 12, marginBottom: 14 }}>
+              <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500 }}>API Endpoint URL</label>
+              <input value={backend} onChange={e => saveBackend(e.target.value)} placeholder="https://bot.cloudxgcloud.com/api/chat" style={{ width: "100%", marginTop: 4, padding: "8px 11px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 12, fontFamily: "var(--font-mono)", outline: "none" }} />
+              <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500, display: "block", marginTop: 10 }}>Bearer Token (opsional)</label>
+              <input type="password" value={apiKey} onChange={e => saveApiKey(e.target.value)} placeholder="••••••••" style={{ width: "100%", marginTop: 4, padding: "8px 11px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 12, fontFamily: "var(--font-mono)", outline: "none" }} />
+              <p style={{ margin: "10px 0 0", fontSize: 10, color: "var(--txt-3)", lineHeight: 1.4 }}>Backend harus POST <code className="inline">{`{provider, persona, message}`}</code> → return <code className="inline">{`{reply}`}</code>. Kosongkan untuk demo mode.</p>
+            </div>
+
+            <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>OpenClaw Agent</p>
+            <div className="ios-card" style={{ padding: 12, marginBottom: 14 }}>
+              {/* Mode selector */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500 }}>Mode</label>
+                <span style={{ fontSize: 10, padding: "1px 7px", background: ocStatus === "online" ? "rgba(52,199,89,0.15)" : ocStatus === "checking" ? "rgba(255,159,10,0.15)" : "rgba(255,59,48,0.15)", color: ocStatus === "online" ? "#34c759" : ocStatus === "checking" ? "#ff9f0a" : "#ff3b30", borderRadius: 4, fontWeight: 600, letterSpacing: "0.04em" }}>
+                  {ocStatus === "online" ? `LIVE${ocPingMs != null ? ` · ${ocPingMs}ms` : ""}` : ocStatus === "checking" ? "CHECKING" : "OFFLINE"}
+                </span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 12 }}>
+                <button onClick={() => saveOcMode("embedded")} style={{
+                  padding: "9px 6px", fontSize: 12, fontWeight: ocMode === "embedded" ? 600 : 500,
+                  background: ocMode === "embedded" ? "var(--info-bg)" : "var(--bg-1)",
+                  border: `0.5px solid ${ocMode === "embedded" ? "var(--info-bd)" : "var(--bd-2)"}`,
+                  borderRadius: 10, cursor: "pointer",
+                  color: ocMode === "embedded" ? "var(--info)" : "var(--txt-2)"
+                }}>
+                  📦 Embedded
+                  <p style={{ margin: "2px 0 0", fontSize: 9, color: "var(--txt-3)", fontWeight: 400 }}>Built-in APK</p>
+                </button>
+                <button onClick={() => saveOcMode("external")} style={{
+                  padding: "9px 6px", fontSize: 12, fontWeight: ocMode === "external" ? 600 : 500,
+                  background: ocMode === "external" ? "var(--info-bg)" : "var(--bg-1)",
+                  border: `0.5px solid ${ocMode === "external" ? "var(--info-bd)" : "var(--bd-2)"}`,
+                  borderRadius: 10, cursor: "pointer",
+                  color: ocMode === "external" ? "var(--info)" : "var(--txt-2)"
+                }}>
+                  🌐 External
+                  <p style={{ margin: "2px 0 0", fontSize: 9, color: "var(--txt-3)", fontWeight: 400 }}>Server lokal/VPS</p>
+                </button>
+              </div>
+
+              {ocMode === "embedded" ? (
+                <>
+                  <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500 }}>Gemini API Key</label>
+                  <input type="password" value={geminiKey} onChange={e => saveGeminiKey(e.target.value)} placeholder="AIza..." style={{ width: "100%", marginTop: 4, padding: "8px 11px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 12, fontFamily: "var(--font-mono)", outline: "none" }} />
+
+                  <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500, display: "block", marginTop: 10 }}>Gemini model</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginTop: 4 }}>
+                    {[
+                      { v: "gemini-2.0-flash-exp", l: "2.0 Flash" },
+                      { v: "gemini-1.5-flash", l: "1.5 Flash" },
+                      { v: "gemini-1.5-pro", l: "1.5 Pro" },
+                      { v: "gemini-2.0-flash-thinking-exp", l: "2.0 Thinking" },
+                    ].map(o => (
+                      <button key={o.v} onClick={() => saveGeminiModel(o.v)} style={{
+                        padding: "7px 4px", fontSize: 11, fontWeight: geminiModel === o.v ? 600 : 500,
+                        background: geminiModel === o.v ? "var(--info-bg)" : "var(--bg-1)",
+                        border: `0.5px solid ${geminiModel === o.v ? "var(--info-bd)" : "var(--bd-2)"}`,
+                        borderRadius: 8, cursor: "pointer",
+                        color: geminiModel === o.v ? "var(--info)" : "var(--txt-2)"
+                      }}>{o.l}</button>
+                    ))}
+                  </div>
+
+                  <button onClick={checkOcStatus} style={{ width: "100%", marginTop: 10, padding: "8px 11px", borderRadius: 10, border: "0.5px solid var(--info-bd)", background: "var(--info-bg)", color: "var(--info)", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                    <Icon name="reboot" size={12} /> Verify API Key
+                  </button>
+
+                  <p style={{ margin: "10px 0 0", fontSize: 10, color: "var(--txt-3)", lineHeight: 1.4 }}>
+                    Mode <b>Embedded</b>: OpenClaw jalan langsung di dalam APK — call Gemini API direct, tanpa server lokal/VPS. Dapat API key gratis di <code className="inline">aistudio.google.com/apikey</code> (Google AI Studio, free tier 1500 req/day).
+                  </p>
+                </>
+              ) : (
+                <>
+                  <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500 }}>Agent URL</label>
+                  <input value={ocUrl} onChange={e => saveOcUrl(e.target.value)} placeholder="http://192.168.1.100:8080" style={{ width: "100%", marginTop: 4, padding: "8px 11px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 12, fontFamily: "var(--font-mono)", outline: "none" }} />
+
+                  <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500, display: "block", marginTop: 10 }}>Model name</label>
+                  <input value={ocModel} onChange={e => saveOcModel(e.target.value)} placeholder="gemini-local" style={{ width: "100%", marginTop: 4, padding: "8px 11px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 12, fontFamily: "var(--font-mono)", outline: "none" }} />
+
+                  <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500, display: "block", marginTop: 10 }}>API format</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 5, marginTop: 4 }}>
+                    {[
+                      { v: "auto", l: "Auto" },
+                      { v: "openai", l: "OpenAI" },
+                      { v: "ollama-chat", l: "Ollama Chat" },
+                      { v: "ollama-gen", l: "Ollama Gen" },
+                      { v: "anthropic", l: "Anthropic" },
+                      { v: "simple", l: "Simple" },
+                    ].map(o => (
+                      <button key={o.v} onClick={() => saveOcFormat(o.v)} style={{
+                        padding: "7px 4px", fontSize: 11, fontWeight: ocFormat === o.v ? 600 : 500,
+                        background: ocFormat === o.v ? "var(--info-bg)" : "var(--bg-1)",
+                        border: `0.5px solid ${ocFormat === o.v ? "var(--info-bd)" : "var(--bd-2)"}`,
+                        borderRadius: 8, cursor: "pointer",
+                        color: ocFormat === o.v ? "var(--info)" : "var(--txt-2)"
+                      }}>{o.l}</button>
+                    ))}
+                  </div>
+
+                  <button onClick={checkOcStatus} style={{ width: "100%", marginTop: 10, padding: "8px 11px", borderRadius: 10, border: "0.5px solid var(--info-bd)", background: "var(--info-bg)", color: "var(--info)", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                    <Icon name="reboot" size={12} /> Test Connection
+                  </button>
+
+                  <p style={{ margin: "10px 0 0", fontSize: 10, color: "var(--txt-3)", lineHeight: 1.4 }}>
+                    Mode <b>External</b>: connect ke OpenClaw server di laptop/VPS. Pakai IP LAN (mis. <code className="inline">http://192.168.x.x:8080</code>), bukan <code className="inline">localhost</code>.
+                  </p>
+                </>
+              )}
+            </div>
+
+            <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>AI Provider</p>
+            {GROUPS.slice(0, 2).map(grp => {
+              const items = Object.entries(PROVIDERS).filter(([, v]) => v.group === grp);
+              return (
+                <div key={grp} style={{ marginBottom: 14 }}>
+                  <p style={{ margin: "0 4px 6px", fontSize: 10, color: "var(--txt-3)", fontWeight: 500 }}>{grp.toUpperCase()}</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                    {items.map(([id, pr]) => (
+                      <button key={id} onClick={() => switchPid(id)} style={{
+                        display: "flex", flexDirection: "column", padding: 11,
+                        background: id === pid ? "var(--info-bg)" : "var(--bg-2)",
+                        border: `0.5px solid ${id === pid ? "var(--info-bd)" : "var(--bd-1)"}`,
+                        borderRadius: 12, cursor: "pointer", textAlign: "left"
+                      }}>
+                        <span style={{ fontSize: 18, marginBottom: 5 }}>{pr.icon}</span>
+                        <p style={{ margin: 0, fontSize: 12, fontWeight: id === pid ? 600 : 500, color: id === pid ? "var(--info)" : "var(--txt-1)" }}>{pr.name}</p>
+                        <p style={{ margin: 0, fontSize: 10, color: id === pid ? "var(--info)" : "var(--txt-3)" }}>{pr.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            <button className="ios-btn" onClick={() => setScreen("providers")} style={{ width: "100%", padding: 11, marginBottom: 16, fontSize: 12, fontWeight: 500, color: "var(--txt-2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+              Lihat semua {Object.keys(PROVIDERS).length} provider <Icon name="chev" size={13} />
+            </button>
+
+            <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Bot Control</p>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <button onClick={() => { setMsgs([{ role: "bot", text: "🔄 Bot sedang restart...\n\n✅ Bot berhasil direstart!\n\nAI aktif: " + p.icon + " *" + p.name + "*", time: fmtTime() }]); changeTab("chat"); }} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: 11, background: "var(--warn-bg)", border: "0.5px solid var(--warn-bd)", borderRadius: 12, cursor: "pointer", fontSize: 12, color: "var(--warn)", fontWeight: 600 }}>
+                <Icon name="reboot" size={13} /> Restart Bot
+              </button>
+              <button className="ios-btn" onClick={() => { setMsgs([]); changeTab("chat"); }} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: 11, borderRadius: 12, fontSize: 12, color: "var(--txt-2)", fontWeight: 600 }}>
+                <Icon name="x" size={13} /> Clear Chat
+              </button>
+            </div>
+
+            <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Commands</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {[["/start", "Menu utama"], ["/ai", "Ganti AI provider"], ["/status", "CPU, RAM & Disk"], ["/screenshot", "Screenshot laptop"], ["/cmd <perintah>", "Jalankan terminal"], ["/files [path]", "List isi folder"], ["/openclaw <task>", "Kirim task ke OpenClaw"], ["/tokens", "Cek kredit semua AI"], ["/clear", "Hapus riwayat chat"]].map(([c, d], i) => (
+                <div key={i} className="ios-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 13px" }}>
+                  <code style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--info)", fontWeight: 600 }}>{c}</code>
+                  <span style={{ fontSize: 11, color: "var(--txt-2)" }}>{d}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* Bottom Nav */}
+      <div className="nav-blur" style={{ display: "flex", borderTop: "0.5px solid var(--bd-1)", position: "sticky", bottom: 0 }}>
+        {[
+          { id: "chat",     icon: "msg",      label: "Chat" },
+          { id: "vps",      icon: "server",   label: "VPS" },
+          { id: "openclaw", icon: "layers",   label: "OpenClaw" },
+          { id: "files",    icon: "folder",   label: "Files" },
+          { id: "settings", icon: "settings", label: "Tools" },
+        ].map(b => (
+          <button key={b.id} onClick={() => changeTab(b.id)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "9px 4px", background: "none", border: "none", cursor: "pointer", color: tab === b.id ? "var(--info)" : "var(--txt-3)", transition: "color .2s cubic-bezier(0.32, 0.72, 0, 1)" }}>
+            <Icon name={b.icon} size={20} strokeWidth={tab === b.id ? 2.4 : 2} />
+            <span style={{ fontSize: 10, marginTop: 3, fontWeight: tab === b.id ? 600 : 500 }}>{b.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+
+<script>
+// Service worker (offline-first PWA support)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "name": "bot-tele-multiai",
+  "version": "1.0.0",
+  "description": "Bot Tele MultiAI - Telegram controller + VPS panel + Terminal + OpenClaw direct agent",
+  "main": "www/index.html",
+  "scripts": {
+    "prep": "mkdir -p www && cp index.html manifest.json sw.js icon-192.png icon-512.png www/",
+    "serve": "npx http-server www -p 5173 -o",
+    "cap:add": "npx cap add android",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "build:apk": "bash build.sh"
+  },
+  "keywords": ["telegram", "bot", "vps", "terminal", "openclaw", "claude", "multiai", "proxinet"],
+  "author": "IKy / PROXINET Batam",
+  "license": "MIT",
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2",
+    "http-server": "^14.1.1"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/status-bar": "^6.0.2",
+    "@capacitor/splash-screen": "^6.0.2"
+  }
+}
