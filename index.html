@@ -123,6 +123,12 @@ const Icon = ({ name, size=20, color="currentColor", strokeWidth=2 }) => {
     case "play": return <svg {...P} fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>;
     case "pause": return <svg {...P} fill="currentColor"><rect width="4" height="16" x="6" y="4"/><rect width="4" height="16" x="14" y="4"/></svg>;
     case "max": return <svg {...P}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>;
+    case "rdp": return <svg {...P}><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="m6 8 3 2.5-3 2.5"/><line x1="13" x2="17" y1="13" y2="13"/></svg>;
+    case "kb": return <svg {...P}><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>;
+    case "zoom-in": return <svg {...P}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg>;
+    case "zoom-out": return <svg {...P}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><line x1="8" x2="14" y1="11" y2="11"/></svg>;
+    case "mouse": return <svg {...P}><rect width="14" height="20" x="5" y="2" rx="7"/><path d="M12 2v8"/><line x1="5" x2="19" y1="10" y2="10"/></svg>;
+    case "disc": return <svg {...P}><path d="m9 9-2 2 2 2"/><path d="m15 9 2 2-2 2"/><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/><circle cx="12" cy="11" r="1"/></svg>;
     default: return null;
   }
 };
@@ -177,7 +183,7 @@ const INITIAL_SERVICES = [
   { name: "SSH Server",     port: 22,   status: "running", icon: "🔐" },
   { name: "HTTP Proxy",     port: 80,   status: "stopped", icon: "🌐" },
 ];
-const TABS = ["chat", "vps", "openclaw", "files", "settings"];
+const TABS = ["chat", "vps", "openclaw", "files", "rdp", "settings"];
 
 const TERM_BANNER = [
   "Microsoft Windows [Version 11.0.26100.2454]",
@@ -281,6 +287,31 @@ function App() {
   const endRef = useRef(null);
   const ocEndRef = useRef(null);
   const termEndRef = useRef(null);
+  const rdpCanvasRef = useRef(null);
+  const rdpWsRef = useRef(null);
+  const rdpResRef = useRef({ w: 1280, h: 720 });
+  const rdpLongPressRef = useRef(null);
+  const rdpTouchStartRef = useRef(null);
+  const rdpLastPosRef = useRef({ x: 0, y: 0 });
+  const rdpKbInputRef = useRef(null);
+
+  // RDP State
+  const [rdpState, setRdpState] = useState("idle"); // idle|connecting|connected|error
+  const [rdpError, setRdpError] = useState("");
+  const [rdpStatus, setRdpStatus] = useState("");
+  const [rdpHost, setRdpHost] = useState(() => { try { return localStorage.getItem("cx_rdp_host") || ""; } catch { return ""; } });
+  const [rdpPort, setRdpPort] = useState(() => { try { return localStorage.getItem("cx_rdp_port") || "3389"; } catch { return "3389"; } });
+  const [rdpUser, setRdpUser] = useState(() => { try { return localStorage.getItem("cx_rdp_user") || ""; } catch { return ""; } });
+  const [rdpPass, setRdpPass] = useState("");
+  const [rdpDomain, setRdpDomain] = useState(() => { try { return localStorage.getItem("cx_rdp_domain") || ""; } catch { return ""; } });
+  const [rdpWsUrl, setRdpWsUrl] = useState(() => { try { return localStorage.getItem("cx_rdp_ws") || "ws://"; } catch { return "ws://"; } });
+  const [rdpRes, setRdpRes] = useState({ w: 1280, h: 720 });
+  const [rdpZoom, setRdpZoom] = useState(1.0);
+  const [rdpKbVisible, setRdpKbVisible] = useState(false);
+  const [rdpMouseMode, setRdpMouseMode] = useState("click");
+  const [rdpSessions, setRdpSessions] = useState(() => { try { return JSON.parse(localStorage.getItem("cx_rdp_sessions") || "[]"); } catch { return []; } });
+
+  useEffect(() => { rdpResRef.current = rdpRes; }, [rdpRes]);
 
   useEffect(() => { const t = setInterval(() => setCpu(Math.floor(22 + Math.random() * 35)), 3000); return () => clearInterval(t); }, []);
   useEffect(() => { if (tab === "chat") endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy, tab]);
@@ -446,6 +477,176 @@ function App() {
     }
     setOcStatus("offline");
     return `⚠️ Gagal connect ke OpenClaw (${ocUrl}).\n\nDetail: ${lastErr || "no response"}\n\nCek: (1) agent jalan di URL itu, (2) port terbuka, (3) CORS allowed, (4) coba ganti format API di Tools.`;
+  }
+
+  /* ── RDP Functions ────────────────────────────────────────────────── */
+  function rdpSend(data) {
+    const ws = rdpWsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
+  }
+
+  function rdpTouchToRdp(touch, canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const res = rdpResRef.current;
+    return {
+      x: Math.round((touch.clientX - rect.left) * (res.w / rect.width)),
+      y: Math.round((touch.clientY - rect.top) * (res.h / rect.height))
+    };
+  }
+
+  function rdpConnect() {
+    const wsUrl = rdpWsUrl.trim();
+    if (!wsUrl.startsWith("ws://") && !wsUrl.startsWith("wss://")) {
+      setRdpError("WS Bridge URL harus dimulai dengan ws:// atau wss://");
+      setRdpState("error"); return;
+    }
+    if (!rdpHost.trim()) { setRdpError("Host RDP tidak boleh kosong"); setRdpState("error"); return; }
+    setRdpState("connecting");
+    setRdpError("");
+    setRdpStatus("Membuka koneksi WebSocket bridge...");
+    try {
+      const ws = new WebSocket(wsUrl);
+      ws.binaryType = "blob";
+      rdpWsRef.current = ws;
+      ws.onopen = () => {
+        setRdpStatus("Menghubungkan ke " + rdpHost + ":" + (rdpPort || 3389) + "...");
+        ws.send(JSON.stringify({ t: "auth", host: rdpHost, port: parseInt(rdpPort) || 3389, user: rdpUser, pass: rdpPass, domain: rdpDomain }));
+        try {
+          localStorage.setItem("cx_rdp_host", rdpHost);
+          localStorage.setItem("cx_rdp_port", rdpPort);
+          localStorage.setItem("cx_rdp_user", rdpUser);
+          localStorage.setItem("cx_rdp_domain", rdpDomain);
+          localStorage.setItem("cx_rdp_ws", wsUrl);
+        } catch {}
+        // Auto-save session
+        const sname = rdpHost + ":" + (rdpPort || 3389) + (rdpUser ? " [" + rdpUser + "]" : "");
+        setRdpSessions(prev => {
+          const upd = [...prev.filter(s => !(s.host === rdpHost && s.port === rdpPort)), { name: sname, host: rdpHost, port: rdpPort, user: rdpUser, domain: rdpDomain, ws: wsUrl }];
+          try { localStorage.setItem("cx_rdp_sessions", JSON.stringify(upd)); } catch {}
+          return upd;
+        });
+      };
+      ws.onmessage = (e) => {
+        if (e.data instanceof Blob) {
+          const url = URL.createObjectURL(e.data);
+          const img = new Image();
+          img.onload = () => {
+            const canvas = rdpCanvasRef.current;
+            if (canvas) canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+          };
+          img.src = url;
+          setRdpState("connected");
+        } else {
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.t === "res") { setRdpRes({ w: msg.w, h: msg.h }); rdpResRef.current = { w: msg.w, h: msg.h }; }
+            else if (msg.t === "frame" && msg.b64) {
+              const img = new Image();
+              img.onload = () => {
+                const canvas = rdpCanvasRef.current;
+                if (canvas) canvas.getContext("2d").drawImage(img, msg.x || 0, msg.y || 0);
+              };
+              img.src = "data:image/jpeg;base64," + msg.b64;
+              setRdpState("connected");
+            } else if (msg.t === "status") {
+              setRdpStatus(msg.m || "");
+              if (msg.connected) setRdpState("connected");
+            } else if (msg.t === "err") {
+              setRdpError(msg.m || "Error tidak diketahui"); setRdpState("error"); ws.close();
+            } else if (msg.t === "close") {
+              setRdpState("idle"); setRdpStatus(""); rdpWsRef.current = null;
+            }
+          } catch {}
+        }
+      };
+      ws.onerror = () => {
+        setRdpError("Gagal terhubung ke WS bridge:\n" + wsUrl + "\n\nPastikan rdp-bridge server berjalan.");
+        setRdpState("error"); rdpWsRef.current = null;
+      };
+      ws.onclose = () => {
+        rdpWsRef.current = null;
+        setRdpState(prev => (prev === "connecting" || prev === "connected") ? "idle" : prev);
+        setRdpKbVisible(false);
+      };
+    } catch (e) {
+      setRdpError("Error: " + e.message); setRdpState("error");
+    }
+  }
+
+  function rdpDisconnect() {
+    if (rdpWsRef.current) {
+      try { rdpWsRef.current.send(JSON.stringify({ t: "disconnect" })); } catch {}
+      rdpWsRef.current.close(); rdpWsRef.current = null;
+    }
+    setRdpState("idle"); setRdpKbVisible(false); setRdpStatus("");
+  }
+
+  function rdpHandleTouchStart(e) {
+    e.preventDefault();
+    clearTimeout(rdpLongPressRef.current);
+    const canvas = rdpCanvasRef.current;
+    if (!canvas || e.touches.length === 0) return;
+    const pos = rdpTouchToRdp(e.touches[0], canvas);
+    rdpTouchStartRef.current = { ...pos, t: Date.now() };
+    rdpLastPosRef.current = pos;
+    rdpSend({ t: "mm", ...pos });
+    rdpLongPressRef.current = setTimeout(() => {
+      rdpSend({ t: "mb", ...rdpLastPosRef.current, b: 3, d: 1 });
+      setTimeout(() => rdpSend({ t: "mb", ...rdpLastPosRef.current, b: 3, d: 0 }), 60);
+    }, 650);
+  }
+
+  function rdpHandleTouchMove(e) {
+    e.preventDefault();
+    clearTimeout(rdpLongPressRef.current);
+    const canvas = rdpCanvasRef.current;
+    if (!canvas || e.touches.length === 0) return;
+    const pos = rdpTouchToRdp(e.touches[0], canvas);
+    rdpLastPosRef.current = pos;
+    rdpSend({ t: "mm", ...pos });
+    if (rdpMouseMode === "drag") rdpSend({ t: "mb", ...pos, b: 1, d: 1 });
+  }
+
+  function rdpHandleTouchEnd(e) {
+    e.preventDefault();
+    clearTimeout(rdpLongPressRef.current);
+    const start = rdpTouchStartRef.current;
+    const last = rdpLastPosRef.current;
+    if (!start) return;
+    const moved = Math.abs(last.x - start.x) + Math.abs(last.y - start.y);
+    const fast = Date.now() - start.t < 450;
+    if (moved < 15 && fast) {
+      rdpSend({ t: "mb", ...last, b: 1, d: 1 });
+      setTimeout(() => rdpSend({ t: "mb", ...last, b: 1, d: 0 }), 60);
+    } else if (rdpMouseMode === "drag") {
+      rdpSend({ t: "mb", ...last, b: 1, d: 0 });
+    }
+    rdpTouchStartRef.current = null;
+  }
+
+  function rdpHandleKey(e) {
+    e.preventDefault();
+    const k = e.keyCode || e.which;
+    if (!k) return;
+    rdpSend({ t: "key", c: k, d: 1 });
+    setTimeout(() => rdpSend({ t: "key", c: k, d: 0 }), 60);
+    // Clear hidden input value to prevent accumulation
+    if (rdpKbInputRef.current) rdpKbInputRef.current.value = "";
+  }
+
+  function rdpLoadSession(s) {
+    setRdpHost(s.host); setRdpPort(s.port);
+    setRdpUser(s.user || ""); setRdpDomain(s.domain || "");
+    setRdpWsUrl(s.ws || "ws://");
+  }
+
+  function rdpDeleteSession(idx) {
+    setRdpSessions(prev => {
+      const upd = prev.filter((_, i) => i !== idx);
+      try { localStorage.setItem("cx_rdp_sessions", JSON.stringify(upd)); } catch {}
+      return upd;
+    });
   }
 
   const p = PROVIDERS[pid];
@@ -868,6 +1069,238 @@ function App() {
           </div>
         )}
 
+        {/* RDP CLIENT */}
+        {tab === "rdp" && (
+          <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 108px)" }}>
+
+            {/* ── CONNECTED STATE ── */}
+            {rdpState === "connected" && (
+              <div style={{ position: "relative", flex: 1, background: "#000", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                {/* Info strip */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 10px", background: "rgba(0,0,0,0.85)", borderBottom: "0.5px solid #333" }}>
+                  <span style={{ fontSize: 11, color: "#9ece6a", fontFamily: "var(--font-mono)" }}>
+                    🖥 {rdpHost}:{rdpPort || 3389}
+                    {rdpUser ? " · " + rdpUser : ""}
+                    {rdpStatus ? " · " + rdpStatus : ""}
+                  </span>
+                  <span style={{ fontSize: 10, color: "#7aa2f7", fontFamily: "var(--font-mono)" }}>
+                    {rdpRes.w}×{rdpRes.h} {rdpZoom !== 1 ? " · " + Math.round(rdpZoom * 100) + "%" : ""}
+                  </span>
+                </div>
+
+                {/* Canvas area */}
+                <div style={{ flex: 1, overflow: "auto", display: "flex", alignItems: "center", justifyContent: "center", background: "#111", touchAction: "none" }}>
+                  <canvas
+                    ref={rdpCanvasRef}
+                    width={rdpRes.w}
+                    height={rdpRes.h}
+                    style={{ display: "block", maxWidth: "100%", transform: `scale(${rdpZoom})`, transformOrigin: "top center", imageRendering: "pixelated", cursor: "crosshair" }}
+                    onTouchStart={rdpHandleTouchStart}
+                    onTouchMove={rdpHandleTouchMove}
+                    onTouchEnd={rdpHandleTouchEnd}
+                  />
+                </div>
+
+                {/* Virtual keyboard hidden input */}
+                {rdpKbVisible && (
+                  <input
+                    ref={rdpKbInputRef}
+                    type="text"
+                    autoFocus
+                    onKeyDown={rdpHandleKey}
+                    onBlur={() => setRdpKbVisible(false)}
+                    style={{ position: "absolute", left: -9999, top: 0, opacity: 0, width: 1, height: 1, fontSize: 16 }}
+                  />
+                )}
+
+                {/* Floating control bar */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-around", padding: "7px 8px", background: "rgba(10,10,14,0.92)", borderTop: "0.5px solid #2a2a30", backdropFilter: "blur(12px)" }}>
+                  {/* Keyboard */}
+                  <button
+                    onClick={() => { setRdpKbVisible(v => !v); setTimeout(() => rdpKbInputRef.current?.focus(), 50); }}
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: rdpKbVisible ? "rgba(10,132,255,0.25)" : "transparent", border: rdpKbVisible ? "0.5px solid rgba(10,132,255,0.5)" : "none", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: rdpKbVisible ? "#0a84ff" : "#8e8e93" }}>
+                    <Icon name="kb" size={18} />
+                    <span style={{ fontSize: 9, fontWeight: 600 }}>Keyboard</span>
+                  </button>
+                  {/* Zoom out */}
+                  <button onClick={() => setRdpZoom(z => Math.max(0.4, +(z - 0.15).toFixed(2)))} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: "transparent", border: "none", padding: "6px 10px", cursor: "pointer", color: "#8e8e93" }}>
+                    <Icon name="zoom-out" size={18} />
+                    <span style={{ fontSize: 9, fontWeight: 600 }}>Kecil</span>
+                  </button>
+                  {/* Zoom reset */}
+                  <button onClick={() => setRdpZoom(1.0)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: "transparent", border: "none", padding: "6px 10px", cursor: "pointer", color: "#8e8e93" }}>
+                    <span style={{ fontSize: 16, lineHeight: 1 }}>⊙</span>
+                    <span style={{ fontSize: 9, fontWeight: 600 }}>Reset</span>
+                  </button>
+                  {/* Zoom in */}
+                  <button onClick={() => setRdpZoom(z => Math.min(3.0, +(z + 0.15).toFixed(2)))} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: "transparent", border: "none", padding: "6px 10px", cursor: "pointer", color: "#8e8e93" }}>
+                    <Icon name="zoom-in" size={18} />
+                    <span style={{ fontSize: 9, fontWeight: 600 }}>Besar</span>
+                  </button>
+                  {/* Mouse mode */}
+                  <button onClick={() => setRdpMouseMode(m => m === "click" ? "drag" : "click")} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: rdpMouseMode === "drag" ? "rgba(10,132,255,0.25)" : "transparent", border: rdpMouseMode === "drag" ? "0.5px solid rgba(10,132,255,0.5)" : "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", color: rdpMouseMode === "drag" ? "#0a84ff" : "#8e8e93" }}>
+                    <Icon name="mouse" size={18} />
+                    <span style={{ fontSize: 9, fontWeight: 600 }}>{rdpMouseMode === "drag" ? "Drag" : "Klik"}</span>
+                  </button>
+                  {/* Disconnect */}
+                  <button onClick={rdpDisconnect} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: "rgba(255,59,48,0.2)", border: "0.5px solid rgba(255,59,48,0.35)", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#ff3b30" }}>
+                    <Icon name="power" size={18} />
+                    <span style={{ fontSize: 9, fontWeight: 600 }}>Putus</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── CONNECTING STATE ── */}
+            {rdpState === "connecting" && (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20, padding: 24, background: "#000" }}>
+                <div style={{ width: 60, height: 60, borderRadius: "50%", border: "3px solid #0a84ff", borderTopColor: "transparent", animation: "rdpSpin 0.8s linear infinite" }} />
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#e6e6e6" }}>Menghubungkan...</p>
+                  <p style={{ margin: "6px 0 0", fontSize: 12, color: "#7aa2f7", fontFamily: "var(--font-mono)" }}>{rdpStatus || rdpHost}</p>
+                </div>
+                <button onClick={rdpDisconnect} style={{ padding: "9px 22px", background: "rgba(255,59,48,0.2)", border: "0.5px solid rgba(255,59,48,0.4)", borderRadius: 12, color: "#ff3b30", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  Batalkan
+                </button>
+              </div>
+            )}
+
+            {/* ── ERROR STATE ── */}
+            {rdpState === "error" && (
+              <div className="scroll-area" style={{ flex: 1, overflowY: "auto", padding: "20px 16px 80px" }}>
+                <div className="ios-card" style={{ padding: 16, marginBottom: 14, border: "0.5px solid rgba(255,59,48,0.35)", background: "rgba(255,59,48,0.08)" }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#ff3b30", marginBottom: 8 }}>⚠️ Gagal Terhubung</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--txt-2)", fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{rdpError}</p>
+                </div>
+                <div className="ios-card" style={{ padding: 14, marginBottom: 14, background: "rgba(255,149,0,0.08)", border: "0.5px solid rgba(255,149,0,0.3)" }}>
+                  <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 600, color: "var(--warn)" }}>Cara setup RDP Bridge:</p>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--txt-3)", lineHeight: 1.7, fontFamily: "var(--font-mono)" }}>
+                    {"# Install di server/VPS:\npip install rdp-ws-bridge\nrdp-bridge --port 8888\n\n# Atau pakai script bawaan:\npython3 rdp_bridge.py"}
+                  </p>
+                </div>
+                <button onClick={() => setRdpState("idle")} style={{ width: "100%", padding: 13, background: "var(--info-bg)", border: "0.5px solid var(--info-bd)", borderRadius: 12, color: "var(--info)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  ← Kembali ke Form
+                </button>
+              </div>
+            )}
+
+            {/* ── IDLE STATE (Connection Form) ── */}
+            {rdpState === "idle" && (
+              <div className="scroll-area" style={{ flex: 1, overflowY: "auto", padding: "12px 12px 80px" }}>
+
+                {/* Header info */}
+                <div className="ios-card" style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", marginBottom: 14, background: "linear-gradient(135deg, var(--info-bg), var(--bg-2))", border: "0.5px solid var(--info-bd)" }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--info-bg)", border: "0.5px solid var(--info-bd)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Icon name="rdp" size={22} color="var(--info)" />
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>RDP Client</p>
+                    <p style={{ margin: 0, fontSize: 11, color: "var(--txt-3)" }}>Remote Desktop untuk Android</p>
+                  </div>
+                </div>
+
+                {/* Saved Sessions */}
+                {rdpSessions.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Sesi Tersimpan</p>
+                    <div className="ios-card" style={{ overflow: "hidden" }}>
+                      {rdpSessions.map((s, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 13px", borderBottom: i < rdpSessions.length - 1 ? "0.5px solid var(--bd-1)" : "none" }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 9, background: "var(--info-bg)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <Icon name="rdp" size={16} color="var(--info)" />
+                          </div>
+                          <div style={{ flex: 1, overflow: "hidden", cursor: "pointer" }} onClick={() => rdpLoadSession(s)}>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.host}:{s.port}</p>
+                            <p style={{ margin: 0, fontSize: 10, color: "var(--txt-3)" }}>{s.user || "no user"}{s.domain ? " · " + s.domain : ""}</p>
+                          </div>
+                          <button onClick={() => rdpLoadSession(s)} style={{ padding: "5px 10px", background: "var(--info-bg)", border: "0.5px solid var(--info-bd)", borderRadius: 8, color: "var(--info)", fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>Load</button>
+                          <button onClick={() => rdpDeleteSession(i)} style={{ width: 28, height: 28, background: "rgba(255,59,48,0.1)", border: "0.5px solid rgba(255,59,48,0.3)", borderRadius: 8, color: "#ff3b30", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Connection Form */}
+                <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Koneksi Baru</p>
+                <div className="ios-card" style={{ padding: 14, marginBottom: 14 }}>
+                  {/* WS Bridge URL */}
+                  <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 600 }}>WS Bridge URL *</label>
+                  <input
+                    value={rdpWsUrl} onChange={e => setRdpWsUrl(e.target.value)}
+                    placeholder="ws://192.168.1.100:8888"
+                    style={{ width: "100%", marginTop: 4, marginBottom: 12, padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 13, fontFamily: "var(--font-mono)", outline: "none" }}
+                  />
+
+                  {/* Host & Port row */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, marginBottom: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 600 }}>Host / IP *</label>
+                      <input
+                        value={rdpHost} onChange={e => setRdpHost(e.target.value)}
+                        placeholder="192.168.1.100"
+                        style={{ width: "100%", marginTop: 4, padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 13, fontFamily: "var(--font-mono)", outline: "none" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 600 }}>Port</label>
+                      <input
+                        value={rdpPort} onChange={e => setRdpPort(e.target.value)}
+                        placeholder="3389" type="number"
+                        style={{ width: 72, marginTop: 4, padding: "9px 10px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 13, fontFamily: "var(--font-mono)", outline: "none" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Username */}
+                  <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 600 }}>Username</label>
+                  <input
+                    value={rdpUser} onChange={e => setRdpUser(e.target.value)}
+                    placeholder="Administrator"
+                    autoCapitalize="none"
+                    style={{ width: "100%", marginTop: 4, marginBottom: 12, padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 13, outline: "none" }}
+                  />
+
+                  {/* Password */}
+                  <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 600 }}>Password</label>
+                  <input
+                    type="password" value={rdpPass} onChange={e => setRdpPass(e.target.value)}
+                    placeholder="••••••••"
+                    style={{ width: "100%", marginTop: 4, marginBottom: 12, padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 13, outline: "none" }}
+                  />
+
+                  {/* Domain */}
+                  <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 600 }}>Domain <span style={{ fontWeight: 400 }}>(opsional)</span></label>
+                  <input
+                    value={rdpDomain} onChange={e => setRdpDomain(e.target.value)}
+                    placeholder="WORKGROUP"
+                    autoCapitalize="none"
+                    style={{ width: "100%", marginTop: 4, padding: "9px 12px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 13, outline: "none" }}
+                  />
+                </div>
+
+                {/* Connect Button */}
+                <button
+                  onClick={rdpConnect}
+                  style={{ width: "100%", padding: 14, background: "var(--info-bg)", border: "0.5px solid var(--info-bd)", borderRadius: 14, color: "var(--info)", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 16 }}>
+                  <Icon name="rdp" size={18} color="var(--info)" /> Hubungkan RDP
+                </button>
+
+                {/* Help Card */}
+                <div className="ios-card" style={{ padding: 14, background: "rgba(255,149,0,0.07)", border: "0.5px solid rgba(255,149,0,0.25)" }}>
+                  <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 600, color: "var(--warn)" }}>ℹ️ Cara Kerja</p>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--txt-3)", lineHeight: 1.7 }}>
+                    App ini konek ke <strong>WS Bridge Server</strong> yang jalan di VPS/PC kamu. Bridge meneruskan protokol RDP dan mengirim frame layar ke sini.<br /><br />
+                    <strong>Setup bridge:</strong> jalankan <code style={{ fontFamily: "var(--font-mono)", background: "var(--bg-3)", padding: "1px 4px", borderRadius: 4 }}>python3 rdp_bridge.py</code> di server, lalu masukkan URL WebSocket-nya di atas.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <style>{`@keyframes rdpSpin { to { transform: rotate(360deg); } }`}</style>
+
         {/* SETTINGS */}
         {tab === "settings" && (
           <div className="scroll-area" style={{ padding: "12px 12px 80px", overflowY: "auto", maxHeight: "calc(100vh - 132px)" }}>
@@ -1039,13 +1472,14 @@ function App() {
         {[
           { id: "chat",     icon: "msg",      label: "Chat" },
           { id: "vps",      icon: "server",   label: "VPS" },
-          { id: "openclaw", icon: "layers",   label: "OpenClaw" },
+          { id: "openclaw", icon: "layers",   label: "Agent" },
+          { id: "rdp",      icon: "rdp",      label: "RDP" },
           { id: "files",    icon: "folder",   label: "Files" },
           { id: "settings", icon: "settings", label: "Tools" },
         ].map(b => (
-          <button key={b.id} onClick={() => changeTab(b.id)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "9px 4px", background: "none", border: "none", cursor: "pointer", color: tab === b.id ? "var(--info)" : "var(--txt-3)", transition: "color .2s cubic-bezier(0.32, 0.72, 0, 1)" }}>
-            <Icon name={b.icon} size={20} strokeWidth={tab === b.id ? 2.4 : 2} />
-            <span style={{ fontSize: 10, marginTop: 3, fontWeight: tab === b.id ? 600 : 500 }}>{b.label}</span>
+          <button key={b.id} onClick={() => changeTab(b.id)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "9px 2px", background: "none", border: "none", cursor: "pointer", color: tab === b.id ? "var(--info)" : "var(--txt-3)", transition: "color .2s cubic-bezier(0.32, 0.72, 0, 1)" }}>
+            <Icon name={b.icon} size={19} strokeWidth={tab === b.id ? 2.4 : 2} />
+            <span style={{ fontSize: 9, marginTop: 2, fontWeight: tab === b.id ? 600 : 500 }}>{b.label}</span>
           </button>
         ))}
       </div>
