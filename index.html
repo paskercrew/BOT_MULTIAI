@@ -458,25 +458,82 @@ function App() {
     setTab(newTab);
   }
 
-  /* Call backend OR fallback to demo */
+  /* Call backend OR direct API OR fallback to demo */
   async function callBackend(text, persona) {
-    if (!backend) {
-      // Demo mode
+    if (!backend && !apiKey) {
       await new Promise(r => setTimeout(r, 700));
-      return `_(mode demo)_ Hai! Saya **${persona}**. Set backend URL di Tools → Backend untuk respon AI sungguhan.\n\nKamu bilang: \`${text.slice(0, 80)}\``;
+      return `_(mode demo)_ Hai! Saya **${persona}**. Buka tab Tools → set API Key provider yang dipilih.\n\nKamu bilang: \`${text.slice(0, 80)}\``;
     }
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 30000);
     try {
-      const headers = { "Content-Type": "application/json" };
-      if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-      const res = await fetch(backend, {
+      // Custom backend server takes priority
+      if (backend) {
+        const headers = { "Content-Type": "application/json" };
+        if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+        const res = await fetch(backend, { method: "POST", headers, body: JSON.stringify({ provider: pid, persona, message: text }), signal: ctrl.signal });
+        const d = await res.json();
+        return d.reply || d.text || d.message || "Tidak ada respon.";
+      }
+      // Direct API calls per provider
+      const SYS = `Kamu adalah asisten AI bernama ${persona}. Jawab dalam Bahasa Indonesia yang natural dan ringkas.`;
+      if (pid === "claude") {
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+          body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1024, system: SYS, messages: [{ role: "user", content: text }] }),
+          signal: ctrl.signal
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error?.message || `HTTP ${res.status}`);
+        return d.content[0].text;
+      }
+      if (pid === "gemini") {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${encodeURIComponent(apiKey)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ systemInstruction: { parts: [{ text: SYS }] }, contents: [{ role: "user", parts: [{ text }] }], generationConfig: { maxOutputTokens: 1024 } }),
+          signal: ctrl.signal
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error?.message || `HTTP ${res.status}`);
+        return d.candidates[0].content.parts[0].text;
+      }
+      if (pid.startsWith("ollama")) {
+        const OLLAMA_MODELS = { ollama: "gemma3:12b", ollama_gemma27: "gemma3:27b", ollama_gemma4: "gemma3:31b", ollama_mistral: "mistral", ollama_kimi_cloud: "kimi-k2.5", ollama_minimax: "minimax-m2", ollama_glm: "glm-5.1" };
+        const base = (ocUrl || "http://localhost:11434").replace(/\/+$/, "");
+        const headers = { "Content-Type": "application/json" };
+        if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+        const res = await fetch(`${base}/api/chat`, {
+          method: "POST", headers,
+          body: JSON.stringify({ model: OLLAMA_MODELS[pid] || "llama3", messages: [{ role: "user", content: text }], stream: false }),
+          signal: ctrl.signal
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`);
+        return d.message?.content || "Tidak ada respon.";
+      }
+      // OpenAI-compatible: groq, deepseek, kimi, xai
+      const OAI = {
+        groq:     { url: "https://api.groq.com/openai/v1/chat/completions",      model: "llama-3.3-70b-versatile" },
+        deepseek: { url: "https://api.deepseek.com/v1/chat/completions",          model: "deepseek-chat" },
+        kimi:     { url: "https://api.moonshot.cn/v1/chat/completions",           model: "moonshot-v1-8k" },
+        xai:      { url: "https://api.x.ai/v1/chat/completions",                  model: "grok-3-mini" },
+      };
+      const cfg = OAI[pid] || { url: "https://api.openai.com/v1/chat/completions", model: "gpt-4o-mini" };
+      const res = await fetch(cfg.url, {
         method: "POST",
-        headers,
-        body: JSON.stringify({ provider: pid, persona, message: text })
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: cfg.model, messages: [{ role: "system", content: SYS }, { role: "user", content: text }], max_tokens: 1024 }),
+        signal: ctrl.signal
       });
       const d = await res.json();
-      return d.reply || d.text || d.message || "Tidak ada respon.";
+      if (!res.ok) throw new Error(d.error?.message || `HTTP ${res.status}`);
+      return d.choices[0].message.content;
     } catch (e) {
-      return `⚠️ Error koneksi backend: ${e.message}`;
+      return `⚠️ Error: ${e.name === "AbortError" ? "Timeout (30s)" : e.message}`;
+    } finally {
+      clearTimeout(tid);
     }
   }
 
@@ -871,13 +928,29 @@ function App() {
         {/* SETTINGS */}
         {tab === "settings" && (
           <div className="scroll-area" style={{ padding: "12px 12px 80px", overflowY: "auto", maxHeight: "calc(100vh - 132px)" }}>
-            <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Backend Config</p>
+            <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>API Keys</p>
             <div className="ios-card" style={{ padding: 12, marginBottom: 14 }}>
-              <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500 }}>API Endpoint URL</label>
-              <input value={backend} onChange={e => saveBackend(e.target.value)} placeholder="https://bot.cloudxgcloud.com/api/chat" style={{ width: "100%", marginTop: 4, padding: "8px 11px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 12, fontFamily: "var(--font-mono)", outline: "none" }} />
-              <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500, display: "block", marginTop: 10 }}>Bearer Token (opsional)</label>
-              <input type="password" value={apiKey} onChange={e => saveApiKey(e.target.value)} placeholder="••••••••" style={{ width: "100%", marginTop: 4, padding: "8px 11px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 12, fontFamily: "var(--font-mono)", outline: "none" }} />
-              <p style={{ margin: "10px 0 0", fontSize: 10, color: "var(--txt-3)", lineHeight: 1.4 }}>Backend harus POST <code className="inline">{`{provider, persona, message}`}</code> → return <code className="inline">{`{reply}`}</code>. Kosongkan untuk demo mode.</p>
+              <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500 }}>
+                API Key — {PROVIDERS[pid]?.name || pid}
+                {" "}<span style={{ color: "var(--info)", fontWeight: 400 }}>
+                  {pid === "claude" && "(console.anthropic.com)"}
+                  {pid === "groq" && "(console.groq.com)"}
+                  {pid === "gemini" && "(aistudio.google.com)"}
+                  {pid === "deepseek" && "(platform.deepseek.com)"}
+                  {pid === "kimi" && "(platform.moonshot.cn)"}
+                  {pid === "xai" && "(console.x.ai)"}
+                  {pid.startsWith("ollama") && "(set URL Ollama di bawah)"}
+                </span>
+              </label>
+              <input type="password" value={apiKey} onChange={e => saveApiKey(e.target.value)}
+                placeholder={pid === "claude" ? "sk-ant-..." : pid === "gemini" ? "AIza..." : pid.startsWith("ollama") ? "kosongkan jika tidak perlu auth" : "gsk_... / sk-..."}
+                style={{ width: "100%", marginTop: 4, padding: "8px 11px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 12, fontFamily: "var(--font-mono)", outline: "none" }} />
+              <p style={{ margin: "8px 0 0", fontSize: 10, color: "var(--txt-3)", lineHeight: 1.4 }}>
+                Isi API Key → langsung terhubung ke {PROVIDERS[pid]?.name || "AI"} tanpa server tambahan. Kosongkan untuk demo mode.
+              </p>
+              <label style={{ fontSize: 11, color: "var(--txt-3)", fontWeight: 500, display: "block", marginTop: 10 }}>Custom Backend URL <span style={{ color: "var(--txt-3)", fontWeight: 400 }}>(opsional — override)</span></label>
+              <input value={backend} onChange={e => saveBackend(e.target.value)} placeholder="https://my-proxy.example.com/api/chat" style={{ width: "100%", marginTop: 4, padding: "8px 11px", borderRadius: 10, border: "0.5px solid var(--bd-2)", background: "var(--bg-1)", color: "var(--txt-1)", fontSize: 12, fontFamily: "var(--font-mono)", outline: "none" }} />
+              <p style={{ margin: "6px 0 0", fontSize: 10, color: "var(--txt-3)", lineHeight: 1.4 }}>Isi hanya jika pakai proxy/backend sendiri. POST <code className="inline">{`{provider,persona,message}`}</code> → <code className="inline">{`{reply}`}</code>.</p>
             </div>
 
             <p style={{ margin: "0 4px 8px", fontSize: 11, fontWeight: 600, color: "var(--txt-3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>OpenClaw Agent</p>
