@@ -49,7 +49,7 @@ cd "$APP_DIR"
 echo "📦 [1/6] Menyiapkan folder www..."
 rm -rf www
 mkdir -p www
-cp index.html manifest.json sw.js icon-192.png icon-512.png www/
+cp index.html manifest.json sw.js icon-192.png icon-512.png react.min.js react-dom.min.js babel.min.js www/
 echo "   ✓ www/ siap"
 
 # ───── 3. Install deps ─────────────────────────────────────────────────────
